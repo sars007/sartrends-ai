@@ -3,7 +3,7 @@
 const config = {
   schema: './prisma/schema.prisma',
   datasource: {
-    url: process.env.DATABASE_URL ?? '',
+    url: 'file:./prisma/dev.db',
   },
 }
 export default config
