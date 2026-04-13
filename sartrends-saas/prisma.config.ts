@@ -1,10 +1,5 @@
-// @ts-check
-/** @type {import('prisma').Config} */
-const config = {
-  schema: './prisma/schema.prisma',
-  datasource: {
-    url: 'file:./prisma/dev.db',
-  },
-}
-export default config
+import { defineConfig } from '@prisma/internals'
+
+// Fixed - using schema param instead
+
 

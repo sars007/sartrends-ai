@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyPassword, generateToken, getUserFromToken } from '@/lib/auth'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { verifyPassword, generateToken } from '@/lib/auth'
+import prisma from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Device lock check
-    const ip = request.ip || request.headers.get('x-forwarded-for')
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
     const userAgent = request.headers.get('user-agent') || 'unknown'
     
     if (user.ipAddress && user.ipAddress !== ip) {
@@ -40,7 +38,7 @@ export async function POST(request: NextRequest) {
     const token = generateToken({ sub: user.id, email: user.email, role: user.role })
 
     const response = NextResponse.json({ message: 'Login successful', userId: user.id })
-response.cookies.set('token', token, { httpOnly: true, secure: false, maxAge: 7 * 24 * 60 * 60 })
+    response.cookies.set('token', token, { httpOnly: true, secure: false, maxAge: 7 * 24 * 60 * 60 })
 
     return response
   } catch (error) {

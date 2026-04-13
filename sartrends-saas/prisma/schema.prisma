@@ -2,27 +2,113 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider        = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  role      Role     @default(USER)
-  ipAddress String?
+  id                String   @id @default(uuid())
+  email             String   @unique
+  password          String
+  role              String   @default("USER")
+  ipAddress         String?
   deviceFingerprint String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  loads           Load[]
+  subscriptions   Subscription[]
+  blogPosts       BlogPost[]
+  aiContents      AIContent[]
 
   @@map("users")
 }
 
-enum Role {
-  ADMIN
-  USER
+model Load {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  fromCity    String
+  toCity      String
+  distance    Float
+  price       Float
+  weight      Float
+  contactName String
+  contactPhone String
+  contactEmail String
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("loads")
+}
+
+model Plan {
+  id        String   @id @default(uuid())
+  name      String
+  price     Float
+  features  String[]
+  monthly   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id        String   @id @default(uuid())
+  userId    String
+  planId    String
+  status    String   @default("active")
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id])
+  plan      Plan     @relation(fields: [planId], references [id])
+  createdAt DateTime @default(now())
+
+  @@map("subscriptions")
+}
+
+model PaymentProof {
+  id          String   @id @default(uuid())
+  userId      String
+  subscriptionId String?
+  amount      Float
+  method      String   // "stripe", "easypaisa", "meezan", "iban"
+  proofUrl    String?
+  status      String   @default("pending")
+  approvedBy  String?
+  user        User     @relation(fields: [userId], references [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references [id])
+  createdAt   DateTime @default(now())
+
+  @@map("payment_proofs")
+}
+
+model BlogPost {
+  id      String @id @default(uuid())
+  title   String
+  content String
+  userId  String
+  user    User   @relation(fields: [userId], references [id])
+  createdAt DateTime @default(now())
+
+  @@map("blog_posts")
+}
+
+model AIContent {
+  id      String @id @default(uuid())
+  type    String // "resume", "cover", "blog", "content"
+  prompt  String
+  output  String
+  userId  String
+  user    User   @relation(fields: [userId], references [id])
+  createdAt DateTime @default(now())
+
+  @@map("ai_contents")
 }
