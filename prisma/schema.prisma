@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      String   @default("user")
+  createdAt DateTime @default(now())
+
+  payments       Payment[]
+  subscriptions  Subscription[]
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  userId     String
+  proofImage String
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id         String   @id @default(cuid())
+  userId     String
+  plan       String
+  startDate  DateTime @default(now())
+  expiryDate DateTime?
+  active     Boolean  @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Load {
+  id          String   @id @default(cuid())
+  brokerName  String?
+  driverName  String?
+  origin      String
+  destination String
+  miles       Float
+  rate        Float
+  ratePerMile Float
+  status      String   @default("open")
+  lat         Float?
+  lng         Float?
+  createdAt   DateTime @default(now())
+}
+
+
