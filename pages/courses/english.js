@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import io from 'socket.io-client' // For AI chat later
+import { callAPI } from '../../lib/api'
 
 const levels = ['Beginner', 'Intermediate', 'Advanced']
 const lessons = [
@@ -14,6 +15,7 @@ export default function EnglishCourse() {
   const [token, setToken] = useState('')
   const [progress, setProgress] = useState({})
   const [currentLesson, setCurrentLesson] = useState(0)
+  const [hasSub, setHasSub] = useState(true)
 
   useEffect(() => {
     const savedToken = localStorage.getItem('token')
@@ -22,26 +24,20 @@ export default function EnglishCourse() {
     fetchProgress(savedToken)
   }, [])
 
-  const fetchProgress = async (token) => {
-    const res = await fetch('/api/courses/progress', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    const data = await res.json()
+  const fetchProgress = async () => {
+    const result = await callAPI('/api/courses/progress')
+    const data = Array.isArray(result) ? result : []
     const prog = data.find(p => p.course === 'english') || {}
     setProgress(prog)
     if (prog.lesson) setCurrentLesson(prog.lesson)
   }
 
   const completeLesson = async (lessonId) => {
-    await fetch('/api/courses/progress', {
+    const result = await callAPI('/api/courses/progress', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
       body: JSON.stringify({ course: 'english', lesson: lessonId })
     })
-    fetchProgress(token)
+    if (!result.error) fetchProgress()
   }
 
   return (

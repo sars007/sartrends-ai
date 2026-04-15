@@ -38,10 +38,10 @@ export default async function handler(req, res) {
     });
 
     const response = completion.choices[0].message.content;
-    res.status(200).json({ response });
+    res.status(200).json({ success: true, result: response });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'AI service error' });
+    res.status(500).json({ success: false, error: error.message });
   }
 }
 

@@ -1,108 +1,124 @@
 import { useEffect, useState } from 'react'
 import io from 'socket.io-client'
-import { Map, GoogleApiWrapper, Marker } from '@googlemaps/react-wrapper'
+import { Map, GoogleApiWrapper, Marker, InfoWindow } from '@googlemaps/react-wrapper'
+import { useRouter } from 'next/router'
+import { callAPI } from '../lib/api'
 
-export default function Loads({ token }) {
+const mapKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyB9u1u...' // Add your key
+
+export default function Loads({ google }) {
   const [loads, setLoads] = useState([])
-  const [liveDrivers, setLiveDrivers] = useState({})
+  const [token, setToken] = useState('')
+  const [selectedLoad, setSelectedLoad] = useState(null)
   const [socket, setSocket] = useState(null)
-  const [tokenState, setTokenState] = useState('')
+  const router = useRouter()
 
   useEffect(() => {
     const savedToken = localStorage.getItem('token')
-    if (!savedToken) window.location.href = '/'
-    setTokenState(savedToken)
+    if (!savedToken) {
+      router.push('/')
+      return
+    }
+    setToken(savedToken)
     fetchLoads(savedToken)
-    initSocket(savedToken)
-    return () => socket?.disconnect()
-  }, [])
-
-  const fetchLoads = async (token) => {
-    const res = await fetch('/api/loads', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    setLoads(await res.json())
-  }
-
-  const initSocket = (token) => {
-    const newSocket = io('/', { auth: { token } })
+    
+    const newSocket = io()
     setSocket(newSocket)
+    
+    return () => newSocket.close()
+  }, [router])
 
-    newSocket.on('live-location', (data) => {
-      setLiveDrivers(prev => ({ ...prev, [data.driverId]: data.location }))
-    })
-
-    // Simulate driver location every 5s
-    const interval = setInterval(() => {
-      newSocket.emit('driver-location', {
-        driverId: 'driver1',
-        location: { lat: 41.8781 + (Math.random()-0.5)*0.01, lng: -87.6298 + (Math.random()-0.5)*0.01 },
-        status: 'online'
-      })
-    }, 5000)
-
-    return () => clearInterval(interval)
+  const fetchLoads = async () => {
+    const result = await callAPI('/api/loads')
+    setLoads(Array.isArray(result) ? result : [])
   }
 
-  const mapContainerStyle = {
-    height: '400px',
-    width: '100%'
+  const mapStyles = {
+    width: '100%',
+    height: '500px'
   }
+
+  if (!token) return <div className="p-8 text-white">Loading...</div>
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 to-black p-8 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-8 text-white">
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-12">
-          <h1 className="text-4xl font-bold">🚚 Live Loadboard + GPS Tracking</h1>
-          <div className="text-xl opacity-75">Drivers online: {Object.keys(liveDrivers).length}</div>
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent">
+            🚛 Live Loadboard
+          </h1>
+          <button 
+            onClick={fetchLoads}
+            className="bg-green-600 hover:bg-green-500 px-8 py-4 rounded-2xl font-bold text-lg"
+          >
+            🔄 Refresh Loads
+          </button>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8 mb-8">
-          <div className="bg-gray-900 rounded-3xl p-8">
-            <h2 className="text-2xl font-bold mb-6">📋 Active Loads</h2>
-            <div className="max-h-96 overflow-auto space-y-4">
-              {loads.map(load => (
-                <div key={load.id} className="bg-gray-800 p-6 rounded-2xl hover:bg-gray-700/50 transition-all">
-                  <div className="font-bold text-lg mb-2">{load.brokerName}</div>
-                  <div className="text-blue-400 mb-2">{load.origin} → {load.destination}</div>
-                  <div className="grid grid-cols-2 gap-4 text-sm opacity-75 mb-2">
-                    <span>Miles: {load.miles.toLocaleString()}</span>
-                    <span className="text-green-400 font-bold">${load.rate.toLocaleString()}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="px-3 py-1 bg-green-600 rounded-full text-xs font-bold">
-                      ${load.ratePerMile}/mile - {load.status.toUpperCase()}
-                    </span>
-                  </div>
+        <div className="grid lg:grid-cols-2 gap-12 items-start">
+          {/* Loads List */}
+          <div className="bg-gray-900/50 backdrop-blur-xl rounded-3xl p-8 border border-gray-700 max-h-[70vh] overflow-y-auto">
+            <h2 className="text-3xl font-bold mb-8">📋 Available Loads ({loads.length})</h2>
+            {loads.map(load => (
+              <div key={load.id} className="bg-gray-800/50 hover:bg-gray-800 p-6 rounded-2xl mb-4 border border-gray-600 cursor-pointer transition-all hover:scale-[1.02]"
+                onClick={() => setSelectedLoad(load)}>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
+                  <div><span className="font-bold">From:</span> {load.origin}</div>
+                  <div><span className="font-bold">To:</span> {load.destination}</div>
+                  <div><span className="font-bold">Miles:</span> {load.miles?.toFixed(0) || 'N/A'}</div>
+                  <div><span className="font-bold">Rate:</span> ${load.rate || 'N/A'}</div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-gray-900 rounded-3xl p-8">
-            <h2 className="text-2xl font-bold mb-6">🗺️ Live GPS Tracking</h2>
-            <div className="h-96 rounded-2xl overflow-hidden bg-black/50 relative">
-              <div className="absolute inset-0 flex items-center justify-center z-10">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-green-500 rounded-full mx-auto mb-2 animate-pulse"></div>
-                  <p>Live driver tracking</p>
-                  <p className="text-sm opacity-75">Socket.io broadcasting</p>
+                <div className="text-sm opacity-75">
+                  {load.brokerName && `Broker: ${load.brokerName}`} {load.status}
                 </div>
               </div>
-              {liveDrivers.driver1 && (
-                <div className="absolute top-4 left-4 bg-white/90 p-3 rounded-xl text-black font-bold shadow-2xl z-20">
-                  Driver1: {liveDrivers.driver1.lat.toFixed(4)}, {liveDrivers.driver1.lng.toFixed(4)}
-                </div>
-              )}
-            </div>
+            ))}
+            {!loads.length && (
+              <div className="text-center py-20 opacity-50">
+                No loads available. Check back soon!
+              </div>
+            )}
           </div>
-        </div>
 
-        <div className="text-center opacity-75">
-          <p>Real-time updates via WebSockets. Driver locations update live every 5s (demo).</p>
+          {/* GPS Map */}
+          <div className="bg-gray-900/50 backdrop-blur-xl rounded-3xl p-6 border border-gray-700">
+            <h2 className="text-3xl font-bold mb-6">🗺️ GPS Load Map</h2>
+            <Map
+              google={google}
+              zoom={4}
+              style={mapStyles}
+              initialCenter={{ lat: 39.8283, lng: -98.5795 }} // US center
+              containerStyle={{ width: '100%', height: '500px' }}
+            >
+              {loads.map(load => load.lat && load.lng && (
+                <Marker
+                  key={load.id}
+                  position={{ lat: load.lat, lng: load.lng }}
+                  title={`${load.origin} → ${load.destination}`}
+                />
+              ))}
+              {selectedLoad?.lat && selectedLoad?.lng && (
+                <InfoWindow
+                  position={{ lat: selectedLoad.lat, lng: selectedLoad.lng }}
+                  onCloseClick={() => setSelectedLoad(null)}
+                >
+                  <div className="p-4">
+                    <h3>{selectedLoad.origin} → {selectedLoad.destination}</h3>
+                    <p>Miles: {selectedLoad.miles?.toFixed(0)} | Rate: ${selectedLoad.rate}</p>
+                  </div>
+                </InfoWindow>
+              )}
+            </Map>
+          </div>
         </div>
       </div>
     </div>
   )
 }
+
+Loads.getInitialProps = async () => {
+  return { }
+}
+
+export { Loads }
 

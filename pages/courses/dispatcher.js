@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { callAPI } from '../../lib/api'
 
 const modules = [
   { id: 1, title: 'Broker Dealing Basics', description: 'How to negotiate rates', completed: false },
@@ -12,38 +13,52 @@ export default function DispatcherCourse() {
   const [token, setToken] = useState('')
   const [progress, setProgress] = useState({})
   const [currentLesson, setCurrentLesson] = useState(0)
+  const [hasSub, setHasSub] = useState(true)
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('token')
-    if (!savedToken) window.location.href = '/'
-    setToken(savedToken)
-    fetchProgress(savedToken)
+    const initCourse = async () => {
+      const savedToken = localStorage.getItem('token')
+      if (!savedToken) window.location.href = '/'
+      setToken(savedToken)
+
+      const checkResult = await callAPI('/api/courses/check')
+      if (checkResult.error || !checkResult.hasSub) {
+        window.location.href = '/billing'
+        return
+      }
+      setHasSub(true)
+      fetchProgress()
+    }
+    initCourse()
   }, [])
 
-  const fetchProgress = async (token) => {
-    const res = await fetch('/api/courses/progress', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    const data = await res.json()
+  const fetchProgress = async () => {
+    const result = await callAPI('/api/courses/progress')
+    const data = Array.isArray(result) ? result : []
     const prog = data.find(p => p.course === 'dispatcher') || {}
     setProgress(prog)
     if (prog.lesson) setCurrentLesson(prog.lesson)
   }
 
   const completeLesson = async (lessonId) => {
-    await fetch('/api/courses/progress', {
+    const result = await callAPI('/api/courses/progress', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
       body: JSON.stringify({ course: 'dispatcher', lesson: lessonId })
     })
-    fetchProgress(token)
+    if (!result.error) fetchProgress()
   }
+
+  if (!hasSub) return <div className="min-h-screen bg-gradient-to-br from-orange-900 to-black p-8 text-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold mb-4">Subscription Required</h1>
+          <p className="mb-8">Upgrade to access Dispatcher Course</p>
+          <a href="/billing" className="bg-orange-500 hover:bg-orange-400 px-8 py-4 rounded-xl font-bold text-lg">Upgrade Now</a>
+        </div>
+      </div>
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-900 to-black p-8 text-white">
+
       <div className="max-w-4xl mx-auto">
         <h1 className="text-5xl font-bold mb-12 text-center">🎓 Dispatcher Course ($50 Lifetime)</h1>
         

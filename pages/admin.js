@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { callAPI } from '../lib/api'
 
 export default function Admin() {
   const [token, setToken] = useState('')
@@ -19,25 +20,21 @@ export default function Admin() {
     loadData(savedToken)
   }, [])
 
+  const safeArray = (data) => Array.isArray(data) ? data : []
+
   const loadData = async (token) => {
     setLoading(true)
-    try {
-      const headers = { Authorization: `Bearer ${token}` }
-
-      const revRes = await fetch('/api/admin/revenue', { headers })
-      setRevenue((await revRes.json()).total || 0)
-
-      const userRes = await fetch('/api/admin/users', { headers })
-      setUsers(await userRes.json())
-
-      const payRes = await fetch('/api/admin/payments', { headers })
-      setPayments(await payRes.json())
-
-      const subRes = await fetch('/api/admin/subscriptions', { headers })
-      setSubscriptions(await subRes.json())
-    } catch (e) {
-      console.error(e)
-    }
+    const [revResult, userResult, payResult, subResult] = await Promise.all([
+      callAPI('/api/admin/revenue'),
+      callAPI('/api/admin/users'),
+      callAPI('/api/admin/payments'),
+      callAPI('/api/admin/subscriptions')
+    ])
+    
+    setRevenue(revResult?.total || 0)
+    setUsers(Array.isArray(userResult) ? userResult : [])
+    setPayments(Array.isArray(payResult) ? payResult : [])
+    setSubscriptions(Array.isArray(subResult) ? subResult : [])
     setLoading(false)
   }
 
@@ -70,16 +67,23 @@ export default function Admin() {
             <div className="text-4xl font-bold">{users.length}</div>
             <div className="opacity-75">Users</div>
           </div>
+
           <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-8 rounded-3xl text-center">
-            <div className="text-4xl font-bold">{subscriptions.filter(s => s.active).length}</div>
+            <div className="text-4xl font-bold">
+              {safeArray(subscriptions).filter(s => s.active).length}
+            </div>
             <div className="opacity-75">Active Subs</div>
           </div>
+
           <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-8 rounded-3xl text-center">
-            <div className="text-4xl font-bold">{payments.filter(p => p.status === 'pending').length}</div>
+            <div className="text-4xl font-bold">
+              {safeArray(payments).filter(p => p?.status === 'pending').length}
+            </div>
             <div className="opacity-75">Pending Payments</div>
           </div>
+
           <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-8 rounded-3xl text-center">
-            <div className="text-4xl font-bold">{payments.length}</div>
+            <div className="text-4xl font-bold">{safeArray(payments).length}</div>
             <div className="opacity-75">Total Payments</div>
           </div>
         </div>
@@ -103,82 +107,19 @@ export default function Admin() {
 
           {loading && <div className="text-center py-12">Loading...</div>}
 
-          {tab === 'dashboard' && (
-            <div>
-              <h2 className="text-3xl font-bold mb-8">📊 Dashboard</h2>
-              <p className="text-xl opacity-75 mb-8">Full control. All features live.</p>
-              <div className="grid md:grid-cols-2 gap-6">
-                <a href="/dashboard" className="bg-blue-600 hover:bg-blue-500 p-6 rounded-2xl text-center">👤 Preview Dashboard</a>
-                <a href="/billing" className="bg-green-600 hover:bg-green-500 p-6 rounded-2xl text-center">💳 Test Billing</a>
-              </div>
-            </div>
-          )}
-
-          {tab === 'users' && (
-            <div>
-              <h2 className="text-3xl font-bold mb-8">👥 Users ({users.length})</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full bg-gray-800 rounded-2xl">
-                  <thead>
-                    <tr className="border-b border-gray-700">
-                      <th className="p-4 text-left">Email</th>
-                      <th className="p-4 text-left">Role</th>
-                      <th className="p-4 text-left">Created</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map(u => (
-                      <tr key={u.id} className="border-b border-gray-700 hover:bg-gray-700/50">
-                        <td className="p-4">{u.email}</td>
-                        <td className="p-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                            u.role === 'admin' ? 'bg-purple-600' : 'bg-gray-600'
-                          }`}>
-                            {u.role}
-                          </span>
-                        </td>
-                        <td className="p-4 opacity-75">{new Date(u.createdAt).toLocaleDateString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
           {tab === 'payments' && (
             <div>
-              <h2 className="text-3xl font-bold mb-8">💳 Payments ({payments.length})</h2>
+              <h2 className="text-3xl font-bold mb-8">💳 Payments ({safeArray(payments).length})</h2>
               <div className="overflow-x-auto">
                 <table className="w-full bg-gray-800 rounded-2xl">
-                  <thead>
-                    <tr className="border-b border-gray-700">
-                      <th className="p-4 text-left">User</th>
-                      <th className="p-4 text-left">Status</th>
-                      <th className="p-4 text-left">Created</th>
-                      <th className="p-4 text-right">Action</th>
-                    </tr>
-                  </thead>
                   <tbody>
-                    {payments.map(p => (
-                      <tr key={p.id} className="border-b border-gray-700 hover:bg-gray-700/50">
+                    {safeArray(payments).map(p => (
+                      <tr key={p.id}>
                         <td className="p-4">{p.user?.email || 'N/A'}</td>
+                        <td className="p-4">{p.status}</td>
                         <td className="p-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                            p.status === 'approved' ? 'bg-green-600' : 'bg-yellow-600'
-                          }`}>
-                            {p.status.toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="p-4 opacity-75">{new Date(p.createdAt).toLocaleDateString()}</td>
-                        <td className="p-4 text-right">
                           {p.status === 'pending' && (
-                            <button
-                              onClick={() => approvePayment(p.id)}
-                              className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded-xl font-bold"
-                            >
-                              ✅ Approve
-                            </button>
+                            <button onClick={() => approvePayment(p.id)}>Approve</button>
                           )}
                         </td>
                       </tr>
@@ -188,44 +129,6 @@ export default function Admin() {
               </div>
             </div>
           )}
-
-          {tab === 'subscriptions' && (
-            <div>
-              <h2 className="text-3xl font-bold mb-8">📋 Subscriptions ({subscriptions.length})</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full bg-gray-800 rounded-2xl">
-                  <thead>
-                    <tr className="border-b border-gray-700">
-                      <th className="p-4 text-left">User</th>
-                      <th className="p-4 text-left">Plan</th>
-                      <th className="p-4 text-left">Status</th>
-                      <th className="p-4 text-left">Start</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {subscriptions.map(s => (
-                      <tr key={s.id} className="border-b border-gray-700 hover:bg-gray-700/50">
-                        <td className="p-4">{s.user?.email || 'N/A'}</td>
-                        <td className="p-4 font-bold">{s.plan}</td>
-                        <td className="p-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                            s.active ? 'bg-green-600' : 'bg-gray-600'
-                          }`}>
-                            {s.active ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td className="p-4 opacity-75">{new Date(s.startDate).toLocaleDateString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-12 text-center opacity-75 text-sm">
-          <a href="https://wa.me/923454837460" className="text-green-400 hover:underline">📱 Support</a>
         </div>
       </div>
     </div>

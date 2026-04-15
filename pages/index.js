@@ -5,34 +5,31 @@ export default function Home() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
 
     try {
-const res = await fetch('/api/auth/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email, password })
-});
+      const result = await callAPI('/api/auth/' + action, {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
 
-const data = await res.json()
+      if (result.error) {
+        setMessage(result.error || result.message)
+        return
+      }
 
-if (!res.ok) {
-  setMessage(data.error)
-  return
-}
+      localStorage.setItem('token', result.token)
+      localStorage.setItem('role', result.role)
+      localStorage.setItem('userId', result.userId)
 
-localStorage.setItem('token', data.token)
-localStorage.setItem('role', data.role)
-localStorage.setItem('userId', data.userId)
-
-if (data.role === 'admin') {
-  window.location.href = '/admin'
-} else {
-  window.location.href = '/dashboard'
-}
+      if (result.role === 'admin') {
+        window.location.href = '/admin'
+      } else {
+        window.location.href = '/dashboard'
+      }
     } catch (error) {
       setMessage('Network error');
     } finally {
@@ -120,3 +117,4 @@ if (data.role === 'admin') {
 }
 
 import { useState } from 'react';
+// No callAPI import needed for index.js

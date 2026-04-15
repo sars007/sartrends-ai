@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { callAPI } from '../lib/api'
 
 export default function Dashboard() {
   const [token, setToken] = useState('')
@@ -24,38 +25,28 @@ export default function Dashboard() {
   }, [])
 
   const checkSubscription = async (token) => {
-    const res = await fetch('/api/users/me', { // Assume /api/users/me endpoint or adapt
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    // Stub for now
+    const result = await callAPI('/api/users/me')
+    if (result.error) {
+      setSubscription(null)
+    } else {
+      setSubscription(result)
+    }
   }
 
   const callAI = async () => {
     setLoading(true)
-    try {
-      let url = '/api/ai'
-      let body = { prompt }
-
-      if (aiType === 'resume') {
-        url = '/api/ai/resume'
-        body = { details: userDetails, jobTitle, company }
-      } else if (aiType === 'cover') {
-        url = '/api/ai/coverletter'
-        body = { details: userDetails, jobTitle, company }
-      }
-
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(body)
+    const result = await callAPI(`/api/ai/${aiType === 'chat' ? '' : aiType}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        prompt,
+        ...(aiType === 'resume' || aiType === 'cover' ? { details: userDetails, jobTitle, company } : {})
       })
-      const data = await res.json()
-      setResponse(data.response || data.resume || data.coverLetter || 'Error')
-    } catch (e) {
-      setResponse('API error - check console/OpenAI key')
+    })
+    
+    if (result.error) {
+      setResponse(`Error: ${result.message}`)
+    } else {
+      setResponse(result.response || result.result || result || 'No response')
     }
     setLoading(false)
   }
@@ -125,7 +116,9 @@ export default function Dashboard() {
             <h2 className="text-2xl mb-4">Quick Actions</h2>
             <a href="/billing" className="block p-4 bg-green-600 hover:bg-green-500 rounded-xl mb-4 text-center">💳 Billing</a>
             <a href="https://wa.me/923454837460" className="block p-4 bg-green-500 hover:bg-green-400 rounded-xl text-center">📱 WhatsApp Support</a>
+            <a href="/ads" className="block p-4 bg-purple-600 hover:bg-purple-500 rounded-xl text-center">🖼️ Ads Generator</a>
             <p className="mt-4 text-sm opacity-75">Subscription: {subscription ? 'Active' : 'Upgrade needed'}</p>
+
           </div>
         </div>
       </div>

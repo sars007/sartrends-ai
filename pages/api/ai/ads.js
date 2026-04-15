@@ -51,10 +51,10 @@ Format as JSON.`;
     });
 
     const result = completion.choices[0].message.content;
-    res.status(200).json({ ad: result });
+    res.status(200).json({ success: true, result, image: null });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Ad generation failed' });
+    res.status(500).json({ success: false, error: error.message });
   }
 }
 
