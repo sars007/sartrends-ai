@@ -1,0 +1,11 @@
+"use strict";(()=>{var e={};e.id=781,e.ids=[781],e.modules={3524:e=>{e.exports=require("@prisma/client")},9344:e=>{e.exports=require("jsonwebtoken")},145:e=>{e.exports=require("next/dist/compiled/next-server/pages-api.runtime.prod.js")},2079:e=>{e.exports=import("openai")},111:(e,t,s)=>{s.a(e,async(e,a)=>{try{s.r(t),s.d(t,{config:()=>d,default:()=>c,routeModule:()=>l});var r=s(1802),i=s(7153),o=s(6249),n=s(5828),u=e([n]);n=(u.then?(await u)():u)[0];let c=(0,o.l)(n,"default"),d=(0,o.l)(n,"config"),l=new r.PagesAPIRouteModule({definition:{kind:i.x.PAGES_API,page:"/api/ai/ads",pathname:"/api/ai/ads",bundlePath:"",filename:""},userland:n});a()}catch(e){a(e)}})},5828:(e,t,s)=>{s.a(e,async(e,a)=>{try{s.r(t),s.d(t,{default:()=>handler});var r=s(2079),i=s(9823),o=e([r]);r=(o.then?(await o)():o)[0];let n=new r.default({apiKey:process.env.OPENAI_API_KEY});async function handler(e,t){if("POST"!==e.method)return t.status(405).json({message:"Method not allowed"});let s=e.headers.authorization;if(!s||!s.startsWith("Bearer "))return t.status(401).json({message:"Unauthorized"});let a=s.split(" ")[1],r=(0,i.WX)(a);if(!r)return t.status(401).json({message:"Invalid token"});let o=await (0,i.wW)(r.userId,r.role);if(!o)return t.status(402).json({message:"No active subscription"});let{prompt:u,type:c="2d"}=e.body;if(!u)return t.status(400).json({message:"Prompt required"});try{let e=`Generate a ${c} ad creative for trucking/dispatch business. 
+Prompt: ${u}
+
+Return:
+1. Detailed image description (for DALL-E)
+2. Ad copy/headline
+3. Call to action
+4. Color scheme
+5. Dimensions suggestions
+
+Format as JSON.`,s=await n.chat.completions.create({model:"gpt-4o-mini",messages:[{role:"user",content:e}]}),a=s.choices[0].message.content;t.status(200).json({success:!0,result:a,image:null})}catch(e){console.error(e),t.status(500).json({success:!1,error:e.message})}}a()}catch(e){a(e)}})}};var t=require("../../../webpack-api-runtime.js");t.C(e);var __webpack_exec__=e=>t(t.s=e),s=t.X(0,[222,823],()=>__webpack_exec__(111));module.exports=s})();
